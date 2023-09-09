@@ -1,0 +1,1 @@
+sudo pkg install -y node npm python39 vm-bhyve
