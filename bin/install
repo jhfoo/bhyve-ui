@@ -1,1 +1,10 @@
-sudo pkg install -y node npm python39 vm-bhyve
+sudo pkg install -y node npm python39 py39-pip vm-bhyve rust
+
+echo "- Removing existing venv/"
+rm -rf ./backend/venv
+
+echo "- Creating new venv/"
+python3.9 -m venv ./backend/venv
+
+echo "- Install Python dependencies"
+./backend/venv/bin/pip3 install -r ./backend/requirements.txt
