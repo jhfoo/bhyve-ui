@@ -4,6 +4,7 @@ import json
 # community
 from typing import Union
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse
 from fabric import Connection
 from asyncio import Future
@@ -11,6 +12,13 @@ import asyncio
 import asyncssh
 
 app = FastAPI()
+app.add_middleware(
+  CORSMiddleware,
+  allow_origins = ['*'],
+  allow_credentials = True,
+  allow_methods = ['*'],
+  allow_headers = ['*']
+)
 
 def parseTableHeader(HeaderStr):
   matches = re.findall('(\S+\s*)', HeaderStr)
@@ -49,13 +57,14 @@ async def getVmList():
 
     VmList = []
     for line in lines:
-      VmInfo = {}
-      for FieldName in OrderedFieldNames:
-        if FieldProperties[FieldName]['isLast']:
-          VmInfo[FieldName] = line[FieldProperties[FieldName]['StartIndex']:].strip()
-        else:
-          VmInfo[FieldName] = line[FieldProperties[FieldName]['StartIndex']:FieldProperties[FieldName]['length']].strip()
-      VmList.append(VmInfo)
+      if len(line) > 0:
+        VmInfo = {}
+        for FieldName in OrderedFieldNames:
+          if FieldProperties[FieldName]['isLast']:
+            VmInfo[FieldName] = line[FieldProperties[FieldName]['StartIndex']:].strip()
+          else:
+            VmInfo[FieldName] = line[FieldProperties[FieldName]['StartIndex']:FieldProperties[FieldName]['length']].strip()
+        VmList.append(VmInfo)
 
     ret.append({
       "host": host,
