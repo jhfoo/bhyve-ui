@@ -20,6 +20,12 @@ app.add_middleware(
   allow_headers = ['*']
 )
 
+hosts = [
+  '192.168.88.7',
+  '192.168.88.10',
+  '192.168.88.3'
+]
+
 def parseTableHeader(HeaderStr):
   matches = re.findall('(\S+\s*)', HeaderStr)
 
@@ -44,8 +50,7 @@ def parseTableHeader(HeaderStr):
 @app.get("/api/bhyve/vm/list", response_class=PlainTextResponse)
 async def getVmList():
   print ('getVmList: SSHing')
-  hosts = ['192.168.88.7','192.168.88.10','192.168.88.3']
-
+  
   ret = []
   for host in hosts:
     conn = await asyncssh.connect(host, known_hosts=None)
@@ -72,6 +77,24 @@ async def getVmList():
     })
 
   return json.dumps(ret, indent=2)
+
+@app.get("/api/bhyve/vm/start", response_class=PlainTextResponse)
+async def stopVm(host: str, vm: str):
+  print ('startVm: SSHing')
+
+  conn = await asyncssh.connect(host, known_hosts=None)
+  resp = await conn.run(f'sudo vm start {vm}')
+  print (resp)
+  return resp.stdout
+
+@app.get("/api/bhyve/vm/stop", response_class=PlainTextResponse)
+async def stopVm(host: str, vm: str):
+  print ('stopVm: SSHing')
+
+  conn = await asyncssh.connect(host, known_hosts=None)
+  resp = await conn.run(f'sudo vm stop {vm}')
+  print (resp)
+  return resp.stdout
 
 @app.get("/")
 def read_root():

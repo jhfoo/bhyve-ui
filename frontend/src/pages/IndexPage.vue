@@ -34,7 +34,7 @@
               <q-btn flat :label="props.row.AUTO" :class="getAutoColor(props.row.AUTO)"/>
             </q-td>
             <q-td key="state" :props="props">
-              <q-btn @click="showStateDialog(props.row)" flat>
+              <q-btn @click="showStateDialog(HostInfo.host, props.row)" flat>
                 <span :class="getStateColor(props.row.STATE)">{{ props.row.STATE }}</span>
               </q-btn>
             </q-td>
@@ -52,13 +52,14 @@
         </q-card-section>
 
         <q-card-section class="q-pt-none">
-          <div>VM name: {{ SelectedVmName }}</div>
+          <div>Host: {{ SelectedHost }}</div>
+          <div>VM name: {{ SelectedVmName.toUpperCase() }}</div>
           <div>Current state: {{ SelectedVmState }}</div>
         </q-card-section>
 
         <q-card-section class="q-pt-none">
-          <q-btn label="Start" v-close-popup class="full-width" color="green" flat/>
-          <q-btn label="Stop" v-close-popup class="full-width" color="orange" flat/>
+          <q-btn @click="startVm" :disable="isDisableStart()" label="Start" v-close-popup class="full-width" color="green" flat/>
+          <q-btn @click="stopVm" :disable="isDisableStop()" label="Stop" v-close-popup class="full-width" color="orange" flat/>
           <q-btn label="Destroy" v-close-popup class="full-width" color="red" flat/>
         </q-card-section>
 
@@ -74,11 +75,14 @@
 import axios from 'axios'
 import { ref } from 'vue'
 
+const API_BASE_URL = 'http://192.168.88.7:8000'
 // const debug = 'resp.data'
 const isShowStateDialog = ref(null)
 isShowStateDialog.value = false
 const SelectedVmState = ref(null)
 const SelectedVmName = ref(null)
+const SelectedHost = ref(null)
+let debug = ''
 
 const hosts = ref([])
 hosts.value = await getVmInfo()
@@ -104,10 +108,45 @@ const RowsPerPageOptions = [
   0,
 ]
 
-function showStateDialog(VmInfo) {
+function isDisableStop() {
+  const isAllow = SelectedVmState.value.toLowerCase().startsWith('stop')
+  console.log(`isAllowStop: ${isAllow}`)
+  return isAllow
+}
+
+function isDisableStart() {
+  const isAllow = SelectedVmState.value.toLowerCase().startsWith('running')
+  console.log(`isAllowStart: ${isAllow}`)
+  return isAllow
+}
+
+async function startVm() {
+  try {
+    const resp = await axios.get(API_BASE_URL + `/api/bhyve/vm/start?host=${SelectedHost.value}&vm=${SelectedVmName.value}`)
+    console.log(resp.data)
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+async function stopVm() {
+  try {
+    const resp = await axios.get(API_BASE_URL + `/api/bhyve/vm/stop?host=${SelectedHost.value}&vm=${SelectedVmName.value}`)
+    console.log(resp.data)
+  } catch (err) {
+    console.error(err)
+  }
+}
+
+function showStateDialog(host, VmInfo) {
   isShowStateDialog.value = true
+  SelectedHost.value = host
   SelectedVmState.value = VmInfo.STATE.toUpperCase()
-  SelectedVmName.value = VmInfo.NAME.toUpperCase()
+  SelectedVmName.value = VmInfo.NAME
+  isAllowStart.value = !SelectedVmState.value.toLowerCase().startsWith('running')
+  isAllowStop.value = !SelectedVmState.value.toLowerCase().startsWith('stopped')
+  console.log(`isAllowStart: ${isAllowStart.value}`)
+  console.log(`isAllowStop: ${isAllowStop.value}`)
 }
 
 function getAutoColor(AutoText) {
@@ -134,7 +173,11 @@ async function onRefresh() {
 }
 
 async function getVmInfo() {
-  const resp = await axios.get('http://192.168.88.7:8000/api/bhyve/vm/list')
-  return resp.data
+  try {
+    const resp = await axios.get(API_BASE_URL + '/api/bhyve/vm/list')
+    return resp.data
+  } catch (err) {
+    console.error(err)
+  }
 }
 </script>
