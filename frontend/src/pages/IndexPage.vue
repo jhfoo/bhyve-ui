@@ -8,7 +8,10 @@
     </q-toolbar>
 
     <div v-for="HostInfo in hosts" class="q-pt-md q-px-md">
-      <q-table :title="'HOST: ' + HostInfo.host" :rows="HostInfo.vms" :columns="columns" :pagination.sync="pagination" :rows-per-page-options="RowsPerPageOptions" row-key="NAME">
+      <q-table :title="'HOST: ' + HostInfo.host" :rows="HostInfo.vms" :columns="columns" :pagination.sync="pagination" 
+        :rows-per-page-options="RowsPerPageOptions" 
+        style="height: 400px" virtual-scroll 
+        row-key="NAME">
         <template v-slot:body="props">
           <!-- <q-tr :props="props" @click="onRowClick(props.row)"> -->
           <q-tr :props="props">
@@ -52,15 +55,24 @@
         </q-card-section>
 
         <q-card-section class="q-pt-none">
-          <div>Host: {{ SelectedHost }}</div>
-          <div>VM name: {{ SelectedVmName.toUpperCase() }}</div>
-          <div>Current state: {{ SelectedVmState }}</div>
+          <q-banner rounded class="bg-blue text-white q-mb-md">
+            State change may take a few seconds to reflect. Refresh the page to see the change reflected.
+          </q-banner>
+          <div class="row">
+            <div class="col-4">Host</div>
+            <div class="col-8">{{ SelectedHost }}</div>
+            <div class="col-4">VM Name</div>
+            <div class="col-8">{{ SelectedVmName.toUpperCase() }}</div>
+            <div class="col-4">Current State</div>
+            <div class="col-8">{{ SelectedVmState }}</div>
+          </div>
         </q-card-section>
 
         <q-card-section class="q-pt-none">
-          <q-btn @click="startVm" :disable="isDisableStart()" label="Start" v-close-popup class="full-width" color="green" flat/>
-          <q-btn @click="stopVm" :disable="isDisableStop()" label="Stop" v-close-popup class="full-width" color="orange" flat/>
-          <q-btn label="Destroy" v-close-popup class="full-width" color="red" flat/>
+          <q-btn @click="sendVmCmd('start')" :disable="isDisableStart()" label="Start" v-close-popup class="full-width" color="green" flat/>
+          <q-btn @click="sendVmCmd('stop', 5)" :disable="isDisableStop()" label="Stop" v-close-popup class="full-width" color="orange" flat/>
+          <q-btn @click="sendVmCmd('unlock')" label="Unlock" v-close-popup class="full-width" color="blue" flat/>
+          <q-btn @click="sendVmCmd('destroy')" label="Destroy" v-close-popup class="full-width" color="red" flat/>
         </q-card-section>
 
         <q-card-actions align="right">
@@ -110,43 +122,35 @@ const RowsPerPageOptions = [
 
 function isDisableStop() {
   const isAllow = SelectedVmState.value.toLowerCase().startsWith('stop')
-  console.log(`isAllowStop: ${isAllow}`)
   return isAllow
 }
 
 function isDisableStart() {
   const isAllow = SelectedVmState.value.toLowerCase().startsWith('running')
-  console.log(`isAllowStart: ${isAllow}`)
   return isAllow
 }
 
-async function startVm() {
+async function sendVmCmd(cmd, RefreshDelaySec = 3) {
   try {
-    const resp = await axios.get(API_BASE_URL + `/api/bhyve/vm/start?host=${SelectedHost.value}&vm=${SelectedVmName.value}`)
-    console.log(resp.data)
+    const resp = await axios.get(API_BASE_URL + `/api/bhyve/vm/${cmd}?host=${SelectedHost.value}&vm=${SelectedVmName.value}`)
+    console.log(`response: ${resp.data}`)
+    if (resp.data.code === 0) {
+      console.log(`Delayed refresh: ${RefreshDelaySec}`)
+      setTimeout(() => {
+        onRefresh()
+      }, RefreshDelaySec * 1000)
+    }
   } catch (err) {
     console.error(err)
   }
 }
 
-async function stopVm() {
-  try {
-    const resp = await axios.get(API_BASE_URL + `/api/bhyve/vm/stop?host=${SelectedHost.value}&vm=${SelectedVmName.value}`)
-    console.log(resp.data)
-  } catch (err) {
-    console.error(err)
-  }
-}
 
 function showStateDialog(host, VmInfo) {
   isShowStateDialog.value = true
   SelectedHost.value = host
   SelectedVmState.value = VmInfo.STATE.toUpperCase()
   SelectedVmName.value = VmInfo.NAME
-  isAllowStart.value = !SelectedVmState.value.toLowerCase().startsWith('running')
-  isAllowStop.value = !SelectedVmState.value.toLowerCase().startsWith('stopped')
-  console.log(`isAllowStart: ${isAllowStart.value}`)
-  console.log(`isAllowStop: ${isAllowStop.value}`)
 }
 
 function getAutoColor(AutoText) {
@@ -174,7 +178,9 @@ async function onRefresh() {
 
 async function getVmInfo() {
   try {
-    const resp = await axios.get(API_BASE_URL + '/api/bhyve/vm/list')
+    const resp = await axios.get(API_BASE_URL + '/api/bhyve/vm/list', {
+      timeout: 3000,
+    })
     return resp.data
   } catch (err) {
     console.error(err)

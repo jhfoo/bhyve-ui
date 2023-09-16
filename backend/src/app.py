@@ -53,6 +53,7 @@ async def getVmList():
   
   ret = []
   for host in hosts:
+    print (f'Connecting to {host}...')
     conn = await asyncssh.connect(host, known_hosts=None)
     resp = await conn.run('sudo vm list')
     lines = resp.stdout.split('\n')
@@ -78,23 +79,48 @@ async def getVmList():
 
   return json.dumps(ret, indent=2)
 
-@app.get("/api/bhyve/vm/start", response_class=PlainTextResponse)
+@app.get("/api/bhyve/vm/destroy", response_class=PlainTextResponse)
+async def unlockVm(host: str, vm: str):
+  conn = await asyncssh.connect(host, known_hosts=None)
+  resp = await conn.run(f'sudo vm destroy -f {vm}')
+  print (resp)
+  return {
+    'message': resp.stdout,
+    'code': resp.returncode
+  }
+
+@app.get("/api/bhyve/vm/unlock", response_class=PlainTextResponse)
+async def unlockVm(host: str, vm: str):
+  conn = await asyncssh.connect(host, known_hosts=None)
+  resp = await conn.run(f'sudo rm /zroot/vm/{vm}/run.lock')
+  print (resp)
+  return resp.stdout
+
+@app.get("/api/bhyve/vm/start")
 async def stopVm(host: str, vm: str):
   print ('startVm: SSHing')
 
   conn = await asyncssh.connect(host, known_hosts=None)
   resp = await conn.run(f'sudo vm start {vm}')
-  print (resp)
-  return resp.stdout
 
-@app.get("/api/bhyve/vm/stop", response_class=PlainTextResponse)
+  return {
+    'message': resp.stdout,
+    'code': resp.returncode
+  }
+
+@app.get("/api/bhyve/vm/stop")
 async def stopVm(host: str, vm: str):
   print ('stopVm: SSHing')
 
-  conn = await asyncssh.connect(host, known_hosts=None)
-  resp = await conn.run(f'sudo vm stop {vm}')
-  print (resp)
-  return resp.stdout
+  try:
+    conn = await asyncssh.connect(host, known_hosts=None)
+    resp = await conn.run(f'sudo vm stop {vm}')
+    return {
+      'message': resp.stdout,
+      'code': resp.returncode
+    }
+  except Exception as err:
+    return err
 
 @app.get("/")
 def read_root():
